@@ -2,4 +2,14 @@ fastapi
 uvicorn
 python-multipart
 openai-whisper
+faster-whisper
 pydub
+librosa==0.10.1
+numpy==1.26.4
+pyloudnorm
+soundfile
+scipy==1.11.4
+
+
+
+
