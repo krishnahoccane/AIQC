@@ -1,13 +1,13 @@
 import subprocess
 import json
 import librosa
+import numpy as np
 import pyloudnorm as pyln
 import soundfile as sf
 from pydub import AudioSegment
 from pydub.silence import detect_silence
 import os
 
-#abs_path = os.path.abspath(self.file_path)
 
 class AudioAnalyzer:
 
@@ -98,44 +98,25 @@ class AudioAnalyzer:
         return float(tempo)
 
     # ---------------------------
-    # MIR Service (Docker Call)
+    # Key Detection (Librosa)
     # ---------------------------
 
-    def run_mir_service(self):
-        """
-        Calls the Docker-based MIR service
-        which runs Essentia + Spleeter
-        """
+    def get_key_detection(self):
+        chroma = librosa.feature.chroma_cqt(y=self.y, sr=self.sr)
+        chroma_mean = np.mean(chroma, axis=1)
 
-        abs_path = os.path.abspath(self.file_path)
+        keys = ['C', 'C#', 'D', 'D#', 'E', 'F',
+                'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-        cmd = [
-            "docker", "run", "--rm",
-            "-v", f"{abs_path}:/app/input.mp3",
-            "mir-service",
-            "/app/input.mp3"
-        ]
+        key_index = np.argmax(chroma_mean)
+        key = keys[key_index]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        confidence = float(np.max(chroma_mean) / np.sum(chroma_mean))
 
-        print("Docker stdout:", result.stdout)
-        print("Docker stderr:", result.stderr)
-
-        if result.returncode != 0:
-            raise Exception(f"MIR Service Error: {result.stderr}")
-
-        output_lines = result.stdout.strip().split("\n")
-
-        # Get last non-empty line (should be JSON)
-        for line in reversed(output_lines):
-            line = line.strip()
-            if line.startswith("{") and line.endswith("}"):
-                return json.loads(line)
-
-        raise Exception("No valid JSON returned from MIR service")
-
-        
-
+        return {
+            "key": key,
+            "confidence": confidence
+        }
 
     # ---------------------------
     # Full Analysis Pipeline
@@ -144,7 +125,6 @@ class AudioAnalyzer:
     def analyze(self):
         self.load_audio()
 
-        # Lightweight DSP
         technical_data = {
             "duration_seconds": self.get_duration(),
             "sample_rate": self.get_sample_rate(),
@@ -162,15 +142,9 @@ class AudioAnalyzer:
         }
 
         musical_data = {
-            "bpm": self.get_bpm()
+            "bpm": self.get_bpm(),
+            "key_detection": self.get_key_detection()
         }
-
-        # Heavy MIR from Docker
-        try:
-            mir_results = self.run_mir_service()
-            musical_data.update(mir_results)
-        except Exception as e:
-            musical_data["mir_error"] = str(e)
 
         return {
             "technical": technical_data,
