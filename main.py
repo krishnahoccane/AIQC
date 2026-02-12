@@ -37,10 +37,10 @@ async def analyze(file: UploadFile = File(...)):
     _, ext = os.path.splitext(file.filename)
     ext = ext.lower().strip()
 
-    if ext not in [".wav", ".mp3"]:
+    if ext not in [".wav", ".mp3",".flac", ".ogg"]:
         raise HTTPException(
             status_code=400,
-            detail="Only WAV and MP3 files are supported."
+            detail="File format is not supported."
         )
 
     # -------------------------

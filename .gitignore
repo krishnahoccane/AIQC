@@ -9,6 +9,19 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Ignore uploads folder
+uploads/
+
+# Ignore sample data folder
+sample_data/
+
+# Ignore all audio files anywhere
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.ogg
+
 # Environment variables
 .env
 
