@@ -11,6 +11,13 @@ soundfile
 scipy==1.11.4
 aiofiles
 requests
+faster-whisper  
+transformers
+torch
+ctranslate2
+spacy
+huggingface_hub
+sentencepiece
 
 
 
