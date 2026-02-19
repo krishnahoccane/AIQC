@@ -6,14 +6,16 @@ import uuid
 
 from services.audio_analysis import AudioAnalyzer
 from services.audio_preprocessing import convert_to_standard_wav
-from fastapi import FastAPI
+#from fastapi import FastAPI
 import asyncio
 from services.file_cleanup import cleanup_old_files
 from contextlib import asynccontextmanager
 from services.nlp_analysis import NLPAnalyzer
 from services.moderation import HybridModeration
 #from services.nlp_analysis import NLPAnalyzer
-
+from services.genre_detection import GenreAnalyzer
+from services.political_content import PoliticalModerationAnalyzer
+from services.metadata_generator import MetadataGenerator
 
 
 
@@ -72,15 +74,26 @@ async def analyze(file: UploadFile = File(...)):
 
         analyzer = AudioAnalyzer(converted_path)
         result = analyzer.analyze()
-
+        genre_analyzer = GenreAnalyzer()
+        genre_result = genre_analyzer.analyze(converted_path)
+        metadata_gen = MetadataGenerator()
         nlp = NLPAnalyzer()
-        moderator = HybridModeration()
+        
         nlp_result = nlp.analyze(converted_path)
+        metadata = metadata_gen.build_metadata(
+        filename=file.filename,
+        language=nlp_result["language"],
+        transcript=nlp_result["text"]
+)
+
+        
+        political_analyzer = PoliticalModerationAnalyzer()
+        political_result = political_analyzer.analyze(nlp_result["text"])
+        moderator = HybridModeration()
         moderation_result = moderator.analyze(
     text=nlp_result["text"],
     language=nlp_result["language"]
-)
-        
+)   
     except Exception as e:
         return JSONResponse(
             status_code=500,
@@ -97,8 +110,12 @@ async def analyze(file: UploadFile = File(...)):
     return {
         "status": "success",
         "analysis": result,
+        "genre"   : genre_result,
+        "metadata" : metadata,
         "nlp": nlp_result,
-        "moderation": moderation_result
+        "Moderation": moderation_result,
+        "Political_moderation": political_result
+
 
     }
 

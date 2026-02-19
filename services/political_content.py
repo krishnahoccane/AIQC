@@ -4,72 +4,113 @@ from transformers import pipeline
 
 class PoliticalModerationAnalyzer:
     """
-    Production-ready analyzer for:
+    Production-ready multilingual moderation analyzer
 
-    - Political content detection
-    - Abusive language detection
-    - Degrading language detection
+    Strict Rules:
+    - political = True only if confidence >= 0.80
+    - hate_speech = True only if confidence >= 0.80
 
-    Multilingual support (100+ languages)
+    Returns:
+    {
+        "political": {
+            "detected": bool,
+            "confidence": float
+        },
+        "hate_speech": {
+            "detected": bool,
+            "confidence": float
+        }
+    }
     """
 
-    _classifier = None
+    _political_classifier = None
+    _hate_classifier = None
     _lock = threading.Lock()
+
+    THRESHOLD = 0.80  # Hardcoded threshold
 
     def __init__(self):
 
         with PoliticalModerationAnalyzer._lock:
 
-            if PoliticalModerationAnalyzer._classifier is None:
-
-                PoliticalModerationAnalyzer._classifier = pipeline(
-                    "zero-shot-classification",
+            if PoliticalModerationAnalyzer._political_classifier is None:
+                PoliticalModerationAnalyzer._political_classifier = pipeline(
+                    task="zero-shot-classification",
                     model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
-                    device=-1,  # CPU
-                    local_files_only=False
+                    device=-1
                 )
 
-    def analyze(self, text: str):
+            if PoliticalModerationAnalyzer._hate_classifier is None:
+                PoliticalModerationAnalyzer._hate_classifier = pipeline(
+                    task="text-classification",
+                    model="unitary/multilingual-toxic-xlm-roberta",
+                    truncation=True,
+                    device=-1
+                )
 
-        candidate_labels = [
-            "political content",
-            "abusive language",
-            "degrading language",
-            "neutral content"
-        ]
+    # -----------------------------
+    # Political detection
+    # -----------------------------
+    def detect_political(self, text):
 
-        result = PoliticalModerationAnalyzer._classifier(
+        result = PoliticalModerationAnalyzer._political_classifier(
             text,
-            candidate_labels,
-            multi_label=True
+            candidate_labels=[
+                "political content",
+                "non-political content"
+            ]
         )
 
-        labels = result["labels"]
-        scores = result["scores"]
+        label = result["labels"][0]
+        confidence = float(result["scores"][0])
 
-        output = {
-            "political": False,
-            "abusive": False,
-            "degrading": False,
-            "confidence": 0.0
+        detected = (
+            label == "political content"
+            and confidence >= self.THRESHOLD
+        )
+
+        return {
+            "detected": detected,
+            "confidence": round(confidence, 3)
         }
 
-        max_conf = 0
+    # -----------------------------
+    # Hate speech detection
+    # -----------------------------
+    def detect_hate(self, text):
 
-        for label, score in zip(labels, scores):
+        result = PoliticalModerationAnalyzer._hate_classifier(text)[0]
 
-            if label == "political content" and score > 0.60:
-                output["political"] = True
+        raw_label = result["label"].upper()
+        confidence = float(result["score"])
 
-            if label == "abusive language" and score > 0.60:
-                output["abusive"] = True
+        hate_labels = {
+            "TOXIC",
+            "HATE",
+            "OFFENSIVE",
+            "INSULT",
+            "IDENTITY_HATE"
+        }
 
-            if label == "degrading language" and score > 0.60:
-                output["degrading"] = True
+        detected = (
+            raw_label in hate_labels
+            and confidence >= self.THRESHOLD
+        )
 
-            if score > max_conf:
-                max_conf = score
+        return {
+            "detected": detected,
+            "confidence": round(confidence, 3)
+        }
 
-        output["confidence"] = round(float(max_conf), 3)
+    # -----------------------------
+    # Final analysis
+    # -----------------------------
+    def analyze(self, text):
 
-        return output
+        political_result = self.detect_political(text)
+        hate_result = self.detect_hate(text)
+
+        return {
+            "political": political_result,
+            "hate_speech": hate_result
+        }

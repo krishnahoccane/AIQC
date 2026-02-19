@@ -18,6 +18,7 @@ ctranslate2
 spacy
 huggingface_hub
 sentencepiece
+torchaudio
 
 
 
