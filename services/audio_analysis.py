@@ -8,6 +8,8 @@ from pydub import AudioSegment
 from pydub.silence import detect_silence
 import os
 
+from services.audio_quality import AudioQualityAnalyzer
+
 
 class AudioAnalyzer:
 
@@ -15,6 +17,9 @@ class AudioAnalyzer:
         self.file_path = os.path.abspath(file_path)
         self.y = None
         self.sr = None
+
+        # Initialize quality analyzer once
+        self.quality_analyzer = AudioQualityAnalyzer()
 
     # ---------------------------
     # Load Audio
@@ -98,7 +103,7 @@ class AudioAnalyzer:
         return float(tempo)
 
     # ---------------------------
-    # Key Detection (Librosa)
+    # Key Detection
     # ---------------------------
 
     def get_key_detection(self):
@@ -123,6 +128,7 @@ class AudioAnalyzer:
     # ---------------------------
 
     def analyze(self):
+
         self.load_audio()
 
         technical_data = {
@@ -146,9 +152,13 @@ class AudioAnalyzer:
             "key_detection": self.get_key_detection()
         }
 
+        # ✅ NEW: Audio Quality Analysis
+        quality_data = self.quality_analyzer.analyze(self.file_path)
+
         return {
             "technical": technical_data,
             "loudness": loudness_data,
             "silence": silence_data,
-            "musical": musical_data
+            "musical": musical_data,
+            "quality": quality_data   # <-- integrated cleanly
         }

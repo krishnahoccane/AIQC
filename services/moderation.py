@@ -92,6 +92,9 @@ class HybridModeration:
     # -----------------------------
 # Transformer detection
 # -----------------------------
+        # -----------------------------
+    # Transformer detection
+    # -----------------------------
     def detect_transformer(self, text):
 
         result = HybridModeration._transformer(text)[0]
@@ -112,16 +115,18 @@ class HybridModeration:
 
         mapped_label = label_map.get(raw_label, raw_label.lower())
 
-        # STRICT RULE: detected only if confidence >= 0.80
+        # STRICT RULE
         if confidence >= 0.80 and mapped_label in ["hate", "abusive", "explicit"]:
-            detected = True
-        else:
-            detected = False
+            return {
+                "detected": True,
+                "label": mapped_label,
+                "confidence": round(confidence, 3)
+            }
 
+        # If not detected → return clean without confidence
         return {
-            "detected": detected,
-            "label": mapped_label,
-            "confidence": round(confidence, 3)
+            "detected": False,
+            "label": "clean"
         }
 
 
@@ -191,6 +196,6 @@ class HybridModeration:
             "language": language,
             "sources": {
                 "wordlist": wordlist,
-                "transformer": transformer
+                "context_explicit": transformer
             }
         }

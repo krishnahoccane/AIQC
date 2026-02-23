@@ -9,16 +9,17 @@ class PoliticalModerationAnalyzer:
     Strict Rules:
     - political = True only if confidence >= 0.80
     - hate_speech = True only if confidence >= 0.80
+    - If detected == False → do NOT return confidence
 
     Returns:
     {
         "political": {
             "detected": bool,
-            "confidence": float
+            "confidence": float (only if detected=True)
         },
         "hate_speech": {
             "detected": bool,
-            "confidence": float
+            "confidence": float (only if detected=True)
         }
     }
     """
@@ -27,7 +28,7 @@ class PoliticalModerationAnalyzer:
     _hate_classifier = None
     _lock = threading.Lock()
 
-    THRESHOLD = 0.80  # Hardcoded threshold
+    THRESHOLD = 0.80
 
     def __init__(self):
 
@@ -64,14 +65,14 @@ class PoliticalModerationAnalyzer:
         label = result["labels"][0]
         confidence = float(result["scores"][0])
 
-        detected = (
-            label == "political content"
-            and confidence >= self.THRESHOLD
-        )
+        if label == "political content" and confidence >= self.THRESHOLD:
+            return {
+                "detected": True,
+                "confidence": round(confidence, 3)
+            }
 
         return {
-            "detected": detected,
-            "confidence": round(confidence, 3)
+            "detected": False
         }
 
     # -----------------------------
@@ -92,14 +93,14 @@ class PoliticalModerationAnalyzer:
             "IDENTITY_HATE"
         }
 
-        detected = (
-            raw_label in hate_labels
-            and confidence >= self.THRESHOLD
-        )
+        if raw_label in hate_labels and confidence >= self.THRESHOLD:
+            return {
+                "detected": True,
+                "confidence": round(confidence, 3)
+            }
 
         return {
-            "detected": detected,
-            "confidence": round(confidence, 3)
+            "detected": False
         }
 
     # -----------------------------
@@ -107,10 +108,7 @@ class PoliticalModerationAnalyzer:
     # -----------------------------
     def analyze(self, text):
 
-        political_result = self.detect_political(text)
-        hate_result = self.detect_hate(text)
-
         return {
-            "political": political_result,
-            "hate_speech": hate_result
+            "political": self.detect_political(text),
+            "hate_speech": self.detect_hate(text)
         }

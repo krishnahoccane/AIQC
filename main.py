@@ -78,7 +78,6 @@ async def analyze(file: UploadFile = File(...)):
         genre_result = genre_analyzer.analyze(converted_path)
         metadata_gen = MetadataGenerator()
         nlp = NLPAnalyzer()
-        
         nlp_result = nlp.analyze(converted_path)
         metadata = metadata_gen.build_metadata(
         filename=file.filename,
