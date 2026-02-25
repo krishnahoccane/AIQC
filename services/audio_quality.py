@@ -92,8 +92,7 @@ class AudioQualityAnalyzer:
 
         clipping_ratio = clipped_samples / total_samples
 
-        # Threshold: 1% clipping is considered distortion
-        return clipping_ratio > 0.01
+        return bool(clipping_ratio > 0.01)
 
     # ---------------------------------
     # Quality Score (SNR + Distortion)
