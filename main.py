@@ -6,24 +6,56 @@ import uuid
 
 from services.audio_analysis import AudioAnalyzer
 from services.audio_preprocessing import convert_to_standard_wav
-#from fastapi import FastAPI
 import asyncio
 from services.file_cleanup import cleanup_old_files
 from contextlib import asynccontextmanager
 from services.nlp_analysis import NLPAnalyzer
 from services.moderation import HybridModeration
-#from services.nlp_analysis import NLPAnalyzer
 from services.genre_detection import GenreAnalyzer
 from services.political_content import PoliticalModerationAnalyzer
 from services.metadata_generator import MetadataGenerator
+from fastapi import Request
 
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi import _rate_limit_exceeded_handler
 
-
+from middleware.rate_limit import limiter
+from utils.logger import logger
+from AIQC.routes import auth
+from AIQC.routes import admin
+from AIQC.routes import staff
+from AIQC.routes import issues
 
 app = FastAPI()
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+from routes import issues
+
+app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(staff.router)
+app.include_router(issues.router)
+
+# Attach limiter to app
+app.state.limiter = limiter
+
+# Add middleware
+app.add_middleware(SlowAPIMiddleware)
+
+# Add exception handler
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+#@app.exception_handler(Exception)
+#async def global_exception_handler(request: Request, exc: Exception):
+    #logger.error(str(exc))
+    #return JSONResponse(
+        #status_code=500,
+        #content={"message": "Internal server error"}
+    #)
 
 
 # -------------------------------------------------

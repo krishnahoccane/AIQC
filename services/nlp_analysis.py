@@ -36,7 +36,7 @@ class NLPAnalyzer:
                 NLPAnalyzer._political_moderator = PoliticalModerationAnalyzer()
 
     # -------------------------------------------------
-    # MAXIMUM-RECALL TRANSCRIPTION
+    # MAXIMUM-RECALL TRANSCRIPTION 
     # -------------------------------------------------
 
     def transcribe(self, file_path: str):

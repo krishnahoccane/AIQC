@@ -19,6 +19,12 @@ spacy
 huggingface_hub
 sentencepiece
 torchaudio
+sqlalchemy
+passlib[bcrypt]
+python-jose
+slowapi
+pydantic-settings
+alembic
 
 
 
