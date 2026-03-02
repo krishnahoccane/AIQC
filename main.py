@@ -22,22 +22,22 @@ from slowapi import _rate_limit_exceeded_handler
 
 from middleware.rate_limit import limiter
 from utils.logger import logger
-from AIQC.routes import auth
-from AIQC.routes import admin
-from AIQC.routes import staff
-from AIQC.routes import issues
+from routes import auth , admin , staff, issue
+from core.database import engine, Base
 
 app = FastAPI()
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-from routes import issues
+#from routes import issues
 
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(staff.router)
-app.include_router(issues.router)
+app.include_router(issue.router)
+
+Base.metadata.create_all(bind=engine)
 
 # Attach limiter to app
 app.state.limiter = limiter

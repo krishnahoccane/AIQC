@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Boolean, Enum, ForeignKey
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 import uuid
-from AIQC.core.database import Base
+from core.database import Base
 
 class User(Base):
     __tablename__ = "users"

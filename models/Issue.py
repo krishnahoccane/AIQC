@@ -3,7 +3,7 @@ from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
-from AIQC.core.database import Base
+from core.database import Base
 
 
 class Issue(Base):
@@ -28,3 +28,4 @@ class Issue(Base):
 
     user = relationship("User", foreign_keys=[user_id])
     staff = relationship("User", foreign_keys=[staff_id])
+

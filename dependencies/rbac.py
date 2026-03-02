@@ -3,6 +3,16 @@ from jose import jwt
 from core.config import settings
 from models.user import User
 from core.database import SessionLocal
+from fastapi import Depends, HTTPException
+#from dependencies.auth import oauth2_scheme
+from core.security import decode_token
+from fastapi import Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from dependencies.auth import get_token
+from core.security import decode_token
+from core.database import get_db
+from models.user import User
 
 
 def get_current_user(token: str):
@@ -15,10 +25,25 @@ def get_current_user(token: str):
 
     return user
 
-
 def require_role(roles: list):
-    def role_checker(user=Depends(get_current_user)):
+
+    def role_checker(
+        token: str = Depends(get_token),
+        db: Session = Depends(get_db)
+    ):
+
+        payload = decode_token(token)
+
+        user_id = payload.get("sub")
+
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
         if user.role not in roles:
-            raise HTTPException(status_code=403, detail="Forbidden")
+            raise HTTPException(status_code=403, detail="Not authorized")
+
         return user
+
     return role_checker

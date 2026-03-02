@@ -25,6 +25,10 @@ python-jose
 slowapi
 pydantic-settings
 alembic
+pydantic[email]
+pymysql
+python-dotenv
+bcrypt==4.0.1
 
 
 

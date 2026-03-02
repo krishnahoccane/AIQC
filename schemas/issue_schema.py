@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from typing import Optional
 
 
 class IssueCreate(BaseModel):
-    title: str
-    description: str
+    title: str  = Field(..., min_length=3, max_length=255)
+    description: str = Field(..., min_length=5)
 
 
 class IssueUpdateStatus(BaseModel):
