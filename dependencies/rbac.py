@@ -13,6 +13,7 @@ from dependencies.auth import get_token
 from core.security import decode_token
 from core.database import get_db
 from models.user import User
+from models.token_blacklist import TokenBlacklist
 
 
 def get_current_user(token: str):
@@ -25,6 +26,7 @@ def get_current_user(token: str):
 
     return user
 
+
 def require_role(roles: list):
 
     def role_checker(
@@ -32,17 +34,43 @@ def require_role(roles: list):
         db: Session = Depends(get_db)
     ):
 
+        # 🔒 Check if token is blacklisted
+        blacklisted = db.query(TokenBlacklist).filter(
+            TokenBlacklist.token == token
+        ).first()
+
+        if blacklisted:
+            raise HTTPException(
+                status_code=401,
+                detail="Token revoked. Please login again."
+            )
+
+        # Decode token
         payload = decode_token(token)
 
         user_id = payload.get("sub")
 
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token payload"
+            )
+
+        # Fetch user
         user = db.query(User).filter(User.id == user_id).first()
 
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
 
+        # Check role permission
         if user.role not in roles:
-            raise HTTPException(status_code=403, detail="Not authorized")
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized"
+            )
 
         return user
 

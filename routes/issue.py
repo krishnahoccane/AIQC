@@ -10,6 +10,18 @@ from models.user import User
 from schemas.issue_schema import IssueCreate, IssueUpdateStatus
 from fastapi import APIRouter
 
+import uuid
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+from dependencies.rbac import require_role
+
+from models.Issue import Issue
+from models.issue_activity import IssueActivity
+
+from schemas.issue_schema import IssueCommentCreate
+
 
 router = APIRouter(prefix="/issues", tags=["Issues"])
 
@@ -54,30 +66,32 @@ def create_issue(
 
 
 # -----------------------------
-# STAFF VIEW ASSIGNED ISSUES
+# USER VIEW SUBMITTED ISSUES
 # -----------------------------
 @router.get("/my-issues")
-def get_staff_issues(
+def get_user_issues(
     db: Session = Depends(get_db),
-    staff=Depends(require_role(["staff"]))
+    user=Depends(require_role(["user"]))
 ):
 
     issues = db.query(Issue).filter(
-        Issue.staff_id == staff.id
+        Issue.user_id == user.id
     ).all()
 
-    return issues
+    return {
+        "success": True,
+        "message": "User issues fetched successfully",
+        "count": len(issues),
+        "data": issues
+    }
 
 
-# -----------------------------
-# STAFF UPDATE ISSUE STATUS
-# -----------------------------
-@router.patch("/{issue_id}/status")
-def update_issue_status(
+@router.post("/{issue_id}/comment")
+def add_issue_comment(
     issue_id: str,
-    payload: IssueUpdateStatus,
+    comment_data: IssueCommentCreate,
     db: Session = Depends(get_db),
-    staff=Depends(require_role(["staff"]))
+    user=Depends(require_role(["user"]))
 ):
 
     issue = db.query(Issue).filter(Issue.id == issue_id).first()
@@ -85,33 +99,76 @@ def update_issue_status(
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found")
 
-    if issue.staff_id != staff.id:
+    # Ensure user owns the issue
+    if issue.user_id != user.id:
         raise HTTPException(
             status_code=403,
-            detail="Not authorized to update this issue"
+            detail="You can only comment on your own issues"
         )
 
-    if payload.status not in VALID_TRANSITIONS[issue.status]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status transition from {issue.status} to {payload.status}"
-        )
+    activity = IssueActivity(
+        id=str(uuid.uuid4()),
+        issue_id=issue_id,
+        staff_id=None,
+        action="user_comment",
+        comment=comment_data.comment
+    )
 
-    issue.status = payload.status
-
+    db.add(activity)
     db.commit()
-    db.refresh(issue)
 
-    return issue
+    return {
+        "success": True,
+        "message": "Comment added successfully",
+        "data": {
+            "issue_id": issue_id,
+            "comment": comment_data.comment
+        }
+    }
 
-
-# -----------------------------
-# ADMIN VIEW ALL ISSUES
-# -----------------------------
-@router.get("/all")
-def get_all_issues(
+@router.patch("/{issue_id}/close")
+def close_issue(
+    issue_id: str,
     db: Session = Depends(get_db),
-    admin=Depends(require_role(["super_admin"]))
+    user=Depends(require_role(["user"]))
 ):
 
-    return db.query(Issue).all()
+    issue = db.query(Issue).filter(Issue.id == issue_id).first()
+
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+
+    # Ensure user owns the issue
+    if issue.user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only close your own issue"
+        )
+
+    if issue.status == "closed":
+        raise HTTPException(
+            status_code=400,
+            detail="Issue already closed"
+        )
+
+    issue.status = "closed"
+
+    activity = IssueActivity(
+        id=str(uuid.uuid4()),
+        issue_id=issue_id,
+        staff_id=None,
+        action="issue_closed",
+        comment="Issue closed by user"
+    )
+
+    db.add(activity)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Issue closed successfully",
+        "data": {
+            "issue_id": issue_id,
+            "status": "closed"
+        }
+    }

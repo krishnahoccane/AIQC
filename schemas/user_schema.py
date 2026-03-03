@@ -59,3 +59,12 @@ class UserCreate(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True

@@ -21,3 +21,6 @@ class IssueResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class IssueCommentCreate(BaseModel):
+    comment: str
