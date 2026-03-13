@@ -40,3 +40,7 @@ dist/
 .DS_Store
 Thumbs.db
 .sample_data/
+.et --hard HEAD@{1}
+.venv310/
+venv/
+env/
