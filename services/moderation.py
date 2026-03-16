@@ -1,35 +1,23 @@
 import re
 import threading
+import unicodedata
+from typing import Optional
+
 import spacy
 from transformers import pipeline
-import unicodedata
+from PIL import Image
 
 from services.profanity_lists import PROFANITY_WORDS
+import os
 
 
 class HybridModeration:
-    """
-    Production-ready hybrid moderation system
-
-    Combines:
-    - Multilingual wordlist detection
-    - Transformer-based hate/abuse detection
-
-    Final Logic:
-    - >= 0.80 → explicit (high)
-    - 0.60–0.79 → moderate (medium)
-    - 0.40–0.59 → low
-    - < 0.40 → clean (none)
-    """
 
     _nlp = None
     _transformer = None
     _profanity_set = None
     _lock = threading.Lock()
 
-    # -----------------------------
-    # Initialize models safely
-    # -----------------------------
     def __init__(self):
 
         with HybridModeration._lock:
@@ -46,27 +34,19 @@ class HybridModeration:
 
             if HybridModeration._profanity_set is None:
                 flattened = set()
-                for language_words in PROFANITY_WORDS.values():
-                    for word in language_words:
-                        flattened.add(word.lower())
+                for words in PROFANITY_WORDS.values():
+                    for w in words:
+                        flattened.add(w.lower())
                 HybridModeration._profanity_set = flattened
 
-    # -----------------------------
-    # Normalize multilingual text
-    # -----------------------------
-    def normalize(self, text):
-
+    def normalize(self, text: str) -> str:
         text = unicodedata.normalize("NFKC", text)
         text = text.lower()
         text = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE)
         text = re.sub(r"\s+", " ", text).strip()
-
         return text
 
-    # -----------------------------
-    # Wordlist detection
-    # -----------------------------
-    def detect_wordlist(self, text):
+    def detect_wordlist(self, text: str):
 
         normalized = self.normalize(text)
         doc = HybridModeration._nlp(normalized)
@@ -86,16 +66,8 @@ class HybridModeration:
             "confidence": 1.0 if matched_unique else 0.0
         }
 
-    # -----------------------------
-    # Transformer detection
-    # -----------------------------
-    # -----------------------------
-# Transformer detection
-# -----------------------------
-        # -----------------------------
-    # Transformer detection
-    # -----------------------------
-    def detect_transformer(self, text):
+    # STEP-2: Lower transformer threshold
+    def detect_transformer(self, text: str):
 
         result = HybridModeration._transformer(text)[0]
 
@@ -115,83 +87,80 @@ class HybridModeration:
 
         mapped_label = label_map.get(raw_label, raw_label.lower())
 
-        # STRICT RULE
-        if confidence >= 0.80 and mapped_label in ["hate", "abusive", "explicit"]:
+        # CHANGED 0.80 → 0.65
+        if confidence >= 0.65 and mapped_label in ["hate", "abusive", "explicit"]:
             return {
                 "detected": True,
                 "label": mapped_label,
                 "confidence": round(confidence, 3)
             }
 
-        # If not detected → return clean without confidence
         return {
             "detected": False,
-            "label": "clean"
+            "label": "clean",
+            "confidence": round(confidence, 3)
         }
 
-
-    # -----------------------------
-    # Combine confidence
-    # -----------------------------
-    def combine_confidence(self, wordlist, transformer):
+    def combine_confidence(self, wordlist, transformer, text):
 
         if not wordlist["detected"] and not transformer["detected"]:
             return 0.0
 
         if wordlist["detected"] and transformer["detected"]:
-            return round(
-                min(1.0, 0.7 * transformer["confidence"] + 0.3),
-                3
-            )
+            score = min(1.0, 0.7 * transformer["confidence"] + 0.3)
 
         elif wordlist["detected"]:
-            return 1.0
+            score = 0.55
 
         elif transformer["detected"]:
-            return round(transformer["confidence"], 3)
+            score = transformer["confidence"]
 
-        return 0.0
+        else:
+            score = 0.0
 
-    # -----------------------------
-    # Final analysis
-    # -----------------------------
-    def analyze(self, text, language):
+        # STEP-3: STT hallucination guard
+        if wordlist["count"] == 1 and transformer["confidence"] < 0.6:
+            score *= 0.4
+
+        # STEP-4: repetition boost
+        if wordlist["count"] >= 5:
+            score += 0.2
+
+        # STEP-6: profanity density normalization
+        density = wordlist["count"] / max(1, len(text.split()))
+        score *= min(1.2, density * 10)
+
+        return round(min(1.0, score), 3)
+
+    def analyze(self, text: str, language: str):
 
         wordlist = self.detect_wordlist(text)
         transformer = self.detect_transformer(text)
 
-        toxicity_score = self.combine_confidence(
-            wordlist,
-            transformer
-        )
+        toxicity_score = self.combine_confidence(wordlist, transformer, text)
 
-        # -----------------------------
-        # Hard classification thresholds
-        # -----------------------------
         if toxicity_score >= 0.80:
             status = "explicit"
             severity = "high"
-
         elif toxicity_score >= 0.60:
             status = "moderate"
             severity = "medium"
-
         elif toxicity_score >= 0.40:
             status = "low"
             severity = "low"
-
         else:
             status = "clean"
             severity = "none"
 
-        #clean_confidence = round(1.0 - toxicity_score, 3)
+        explicit_flag = status in ["explicit", "moderate"]
 
         return {
-            "explicit_content": {
+            "moderation_flag": {
+                "explicit": explicit_flag,
+                "advisory_required": explicit_flag,
                 "status": status,
                 "severity": severity,
-                "confidence": round(toxicity_score, 3),
-                #"clean_confidence": clean_confidence
+                "confidence": round(toxicity_score, 3)
             },
             "language": language,
             "sources": {
@@ -199,3 +168,31 @@ class HybridModeration:
                 "context_explicit": transformer
             }
         }
+
+    def overlay_parental_advisory(
+        self,
+        cover_path: str,
+        logo_path: str,
+        output_path: Optional[str] = None
+    ) -> str:
+
+        base = Image.open(cover_path).convert("RGBA")
+        logo = Image.open(logo_path).convert("RGBA")
+
+        logo_size = int(base.width * 0.22)
+        logo = logo.resize((logo_size, logo_size))
+
+        position = (
+            base.width - logo.width - 30,
+            base.height - logo.height - 30
+        )
+
+        base.paste(logo, position, logo)
+
+        if output_path is None:
+            base_name, ext = os.path.splitext(cover_path)
+            output_path = f"{base_name}_advisory.png"
+
+        base.convert("RGB").save(output_path)
+
+        return output_path

@@ -29,6 +29,7 @@ pydantic[email]
 pymysql
 python-dotenv
 bcrypt==4.0.1
+pillow
 
 
 
