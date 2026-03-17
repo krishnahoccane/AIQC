@@ -103,34 +103,49 @@ class HybridModeration:
 
     def combine_confidence(self, wordlist, transformer, text):
 
-        if not wordlist["detected"] and not transformer["detected"]:
-            return 0.0
+        profanity_count = wordlist["count"]
+        transformer_conf = transformer["confidence"]
+        total_words = max(1, len(text.split()))
 
+        # ---------- Base score fusion ----------
         if wordlist["detected"] and transformer["detected"]:
-            score = min(1.0, 0.7 * transformer["confidence"] + 0.3)
+            score = 0.5 * transformer_conf + 0.35
 
         elif wordlist["detected"]:
-            score = 0.55
+            score = 0.65
 
         elif transformer["detected"]:
-            score = transformer["confidence"]
+            score = transformer_conf * 0.75
 
         else:
             score = 0.0
 
-        # STEP-3: STT hallucination guard
-        if wordlist["count"] == 1 and transformer["confidence"] < 0.6:
-            score *= 0.4
+        # ---------- STT hallucination guard ----------
+        if profanity_count == 1 and transformer_conf < 0.55:
+            score *= 0.45
 
-        # STEP-4: repetition boost
-        if wordlist["count"] >= 5:
-            score += 0.2
+        # ---------- Repetition boost (lyrics behavior) ----------
+        if profanity_count >= 3:
+            score += 0.35
+        elif profanity_count == 2:
+            score += 0.18
 
-        # STEP-6: profanity density normalization
-        density = wordlist["count"] / max(1, len(text.split()))
-        score *= min(1.2, density * 10)
+        # ---------- Profanity density signal ----------
+        density = profanity_count / total_words
 
-        return round(min(1.0, score), 3)
+        if density > 0.06:
+            score += 0.25
+        elif density > 0.03:
+            score += 0.12
+        elif density < 0.01:
+            score *= 0.65
+
+        # ---------- Transformer confidence damping (lyrics domain) ----------
+        if transformer_conf < 0.50:
+            score *= 0.85
+
+        # ---------- Final clamp ----------
+        return round(min(1.0, max(0.0, score)), 3)
 
     def analyze(self, text: str, language: str):
 

@@ -146,7 +146,7 @@ async def analyze(file: UploadFile = File(...)):
         # ✅ Initialize variables BEFORE use
         saved_cover_path = None
         advisory_cover_path = None
-        cover_text = ""
+        cover_text = None
 
         #  Extract cover BEFORE overlay
         cover_bytes = extract_cover_art(file_path)
@@ -168,7 +168,7 @@ async def analyze(file: UploadFile = File(...)):
             )
             logger.info(f"Advisory cover generated: {advisory_cover_path}")
         else:
-            advisory_cover_path = saved_cover_path if saved_cover_path else None
+            advisory_cover_path = None
 
         # ✅  Convert Windows path → URL path
         if advisory_cover_path is not None:
