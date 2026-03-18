@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+
 from fastapi.responses import JSONResponse
 import os
 import traceback
@@ -16,6 +16,10 @@ from contextlib import asynccontextmanager
 from routes import auth, admin, staff, issue
 from core.database import engine, Base
 from services.audio_pipeline import AudioPipeline
+from dotenv import load_dotenv
+env_path = os.path.join(os.getcwd(), ".env")
+load_dotenv(env_path)
+from fastapi import FastAPI, UploadFile, File, HTTPException
 
 app = FastAPI()
 
@@ -23,6 +27,8 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
 
 app.include_router(auth.router)
 app.include_router(admin.router)

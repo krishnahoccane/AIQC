@@ -11,7 +11,7 @@ from services.political_content import PoliticalModerationAnalyzer
 from services.metadata_generator import MetadataGenerator
 from services.cover_art_extractor import extract_cover_art
 from services.cover_art_analysis import extract_text_from_cover
-from services.acr_youtube_matcher import ACRYouTubeMatcher
+from services.acr_matcher import ACRYouTubeMatcher
 from utils.logger import logger
 
 UPLOAD_DIR = "uploads"
@@ -96,11 +96,11 @@ class AudioPipeline:
             cover_url = None
 
         # ACR Copyright check
-        #acr = ACRYouTubeMatcher()
-        #acr_response = acr.recognize_audio(converted_path)
+        acr = ACRYouTubeMatcher()
+        acr_response = acr.recognize_audio(converted_path)
 
-        #youtube_match = acr.parse_youtube_match(acr_response)
-        #spotify_match = acr.parse_spotify_match(acr_response)
+        youtube_match = acr.parse_youtube_match(acr_response)
+        spotify_match = acr.parse_spotify_match(acr_response)
 
         return {
             "status": "success",
