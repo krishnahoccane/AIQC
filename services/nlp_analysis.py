@@ -72,9 +72,9 @@ class NLPAnalyzer:
             transcript_segments.append({
                 "start": round(segment.start, 2),
                 "end": round(segment.end, 2),
-                "text": text,
-                "avg_logprob": round(segment.avg_logprob, 3),
-                "no_speech_prob": round(segment.no_speech_prob, 3)
+                "text": text
+                #"avg_logprob": round(segment.avg_logprob, 3),
+                #"no_speech_prob": round(segment.no_speech_prob, 3)
             })
 
             full_text_parts.append(text)

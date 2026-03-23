@@ -10,7 +10,8 @@ from dependencies.rbac import require_role
 from models.user import User
 from models.Issue import Issue
 from fastapi import Query
-from schemas.admin_schema import UserStatusUpdate
+from schemas.admin_schema import UserStatusUpdate,UserResponse
+from typing import List
 
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -44,7 +45,7 @@ def admin_create_user(
         }
     }
 
-@router.get("/users")
+@router.get("/users",response_model=List[UserResponse])
 def get_all_users(
     page: int = Query(1, ge=1),
     limit: int = Query(10, le=100),

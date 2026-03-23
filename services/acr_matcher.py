@@ -63,12 +63,22 @@ class ACRYouTubeMatcher:
 
         try:
             music = acr_response["metadata"]["music"][0]
-            yt = music["external_metadata"]["youtube"]
 
+            # Case 1 — platform metadata exists
+            yt = music.get("external_metadata", {}).get("youtube")
+
+            if yt:
+                return {
+                    "title": music["title"],
+                    "artist": music["artists"][0]["name"]
+                    #"youtube_url": f"https://youtube.com/watch?v={yt['vid']}"
+                }
+
+            # Case 2 — fallback metadata match
             return {
                 "title": music["title"],
-                "artist": music["artists"][0]["name"],
-                "youtube_url": f"https://youtube.com/watch?v={yt['vid']}"
+                "artist": music["artists"][0]["name"]
+                #"youtube_url": None
             }
 
         except:
@@ -78,13 +88,20 @@ class ACRYouTubeMatcher:
 
         try:
             music = acr_response["metadata"]["music"][0]
-            spotify = music["external_metadata"]["spotify"]
+
+            sp = music.get("external_metadata", {}).get("spotify")
+
+            if sp:
+                return {
+                    "title": music["title"],
+                    "artist": music["artists"][0]["name"]
+                    #"spotify_url": f"https://open.spotify.com/track/{sp['track']['id']}"
+                }
 
             return {
                 "title": music["title"],
-                "artist": music["artists"][0]["name"],
-                "spotify_id": spotify["track"]["id"],
-                "spotify_url": f"https://open.spotify.com/track/{spotify['track']['id']}"
+                "artist": music["artists"][0]["name"]
+                #"spotify_url": None
             }
 
         except:

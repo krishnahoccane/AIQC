@@ -9,6 +9,8 @@ from models.Issue import Issue
 import uuid
 from models.issue_activity import IssueActivity
 from schemas.issue_activity_schema import IssueCommentCreate
+from schemas.user_schema import StaffUserResponse
+from typing import List
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/staff", tags=["Staff"])
 # -------------------------
 # GET ASSIGNED USERS
 # -------------------------
-@router.get("/users")
+@router.get("/users",response_model=List[StaffUserResponse])
 def get_assigned_users(
     db: Session = Depends(get_db),
     staff=Depends(require_role(["staff"]))

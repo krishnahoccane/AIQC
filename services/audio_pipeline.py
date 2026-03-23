@@ -12,7 +12,9 @@ from services.metadata_generator import MetadataGenerator
 from services.cover_art_extractor import extract_cover_art
 from services.cover_art_analysis import extract_text_from_cover
 from services.acr_matcher import ACRYouTubeMatcher
+from services.audio_utils import trim_audio_for_acr,build_copyright_status
 from utils.logger import logger
+
 
 UPLOAD_DIR = "uploads"
 
@@ -31,6 +33,7 @@ class AudioPipeline:
 
         # Convert
         converted_path = convert_to_standard_wav(file_path)
+        acr_input_path = trim_audio_for_acr(converted_path, duration=20)
 
         # Audio analysis
         analyzer = AudioAnalyzer(converted_path)
@@ -97,10 +100,16 @@ class AudioPipeline:
 
         # ACR Copyright check
         acr = ACRYouTubeMatcher()
-        acr_response = acr.recognize_audio(converted_path)
+        acr_response = acr.recognize_audio(acr_input_path)
 
         youtube_match = acr.parse_youtube_match(acr_response)
         spotify_match = acr.parse_spotify_match(acr_response)
+
+        copyright_status = build_copyright_status(
+        acr_response,
+        youtube_match,
+        spotify_match
+        )
 
         return {
             "status": "success",
@@ -115,8 +124,5 @@ class AudioPipeline:
                 "cover_url": cover_url,
                 "ocr_text": cover_text
             },
-            #"copyright_check": {
-                #"acr_youtube_match": youtube_match,
-                #"acr_spotify_match": spotify_match
-           # }
+            "copyright_check": copyright_status
         }

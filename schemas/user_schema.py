@@ -3,6 +3,8 @@ from pydantic import BaseModel, EmailStr
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 import re
+import uuid
+from uuid import UUID
 
 
 ALLOWED_ROLES = {"staff", "user"}
@@ -68,3 +70,13 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StaffUserResponse(BaseModel):
+    id: UUID
+    name: str
+    email: str
+    role: str
+    is_active: bool
+
+    class Config:
+        orm_mode = True
